@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 import requests
 from dotenv import load_dotenv
@@ -12,6 +12,9 @@ app = FastAPI()
 
 # Configurar la clave de API de OpenAI desde la variable de entorno
 api_key = os.getenv('GEMINI_API_KEY')
+
+# Obtener la IP permitida desde las variables de entorno
+allowed_ip = os.getenv('ALLOWED_IP')
 
 class SintomasRequest(BaseModel):
     sintomas: list[str]
@@ -34,6 +37,25 @@ def obtener_diagnostico(sintomas):
     json_content = response.json()
     diagnostico = json_content.get('candidates', [])[0].get('content').get('parts')
     return diagnostico
+
+# Middleware para restringir por IP (version de prueba)
+@app.middleware("http")
+async def restrict_ip(request: Request, call_next):
+    client_ip = request.client.host  # Obtener la IP del cliente
+    #print(f"Client IP: {client_ip}")  # Log the client IP
+    if client_ip != allowed_ip:
+        raise HTTPException(status_code=403, detail="Access denied: Unauthorized IP address")
+    return await call_next(request)
+
+# # Middleware para restringir por IP (esta version de la funcion es para cuando nginx mande la ip dentro de "X-Forwarded-For" or "X-Real-IP" en los headers)
+# @app.middleware("http")
+# async def restrict_ip(request: Request, call_next):
+#     forwarded_for = request.headers.get("x-forwarded-for")
+#     client_ip = forwarded_for.split(",")[0] if forwarded_for else request.client.host
+#     print(f"Client IP: {client_ip}")  # Log the adjusted client IP
+#     if client_ip != allowed_ip:
+#         raise HTTPException(status_code=403, detail="Access denied: Unauthorized IP address")
+#     return await call_next(request)
 
 @app.post("/diagnostico")
 async def diagnostico(request: SintomasRequest):
