@@ -33,8 +33,16 @@ def obtener_diagnostico(sintomas, operacion):
     }
 
     response = requests.post(endpoint, headers=headers, params={"key": api_key}, json=data)
+    if not response.ok:
+        return "PRIORIDAD I"
     json_content = response.json()
+    if not json_content:
+        return "PRIORIDAD I"
+
     diagnostico = json_content.get('candidates', [])[0].get('content').get('parts')
+
+    if not diagnostico:
+        return "PRIORIDAD I"
 
     # Procesar la respuesta para asegurar el formato
     if diagnostico:
